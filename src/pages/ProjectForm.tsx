@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { CurrencyInput } from '@/components/ui/currency-input'
 import { PercentageInput } from '@/components/ui/percentage-input'
 import { DateInput } from '@/components/ui/date-input'
+import Breadcrumbs from '@/components/Breadcrumbs'
 import {
   Dialog,
   DialogContent,
@@ -400,6 +401,11 @@ function ProjectForm() {
             alt="Lucro Claro" 
             style={{ height: '50px', width: 'auto' }}
           />
+        </div>
+
+        {/* Breadcrumbs */}
+        <div className="max-w-4xl mx-auto mb-6">
+          <Breadcrumbs />
         </div>
 
         <Card className="max-w-4xl mx-auto shadow-lg">

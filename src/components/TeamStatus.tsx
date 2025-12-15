@@ -23,40 +23,40 @@ function TeamStatus({ professionals }: TeamStatusProps) {
   }
 
   return (
-    <Card className="shadow-lg h-full">
+    <Card className="shadow-lg">
       <CardHeader className="pb-4">
-        <CardTitle className="text-lg" style={{ color: '#28314d' }}>Status da Equipe</CardTitle>
+        <CardTitle className="text-base sm:text-lg" style={{ color: '#28314d' }}>Status da Equipe</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-2.5">
           {professionals.map((professional) => (
             <div
               key={professional.id}
-              className="flex items-center justify-between p-3 rounded-lg border"
+              className="flex items-center justify-between p-3 rounded-lg border gap-2"
             >
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5 flex-1 min-w-0">
                 <div
-                  className="w-2.5 h-2.5 rounded-full"
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: getStatusColor(professional.status) }}
                 />
-                <div>
-                  <p className="font-semibold text-sm" style={{ color: '#28314d' }}>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm truncate" style={{ color: '#28314d' }}>
                     {professional.name}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground truncate">
                     {professional.role}
                   </p>
                   {professional.currentProject && (
-                    <p className="text-xs text-muted-foreground/80 mt-0.5">
+                    <p className="text-xs text-muted-foreground/80 mt-0.5 truncate">
                       {professional.currentProject}
                     </p>
                   )}
                 </div>
               </div>
-              <div className="text-right">
+              <div className="text-right flex-shrink-0">
                 <Badge
                   variant={"outline" as const}
-                  className="text-xs"
+                  className="text-xs whitespace-nowrap"
                   style={{
                     backgroundColor: getStatusColor(professional.status) + '20',
                     color: getStatusColor(professional.status),

@@ -12,6 +12,7 @@ import { CurrencyInput } from '@/components/ui/currency-input'
 import { PercentageInput } from '@/components/ui/percentage-input'
 import { DateInput } from '@/components/ui/date-input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import Breadcrumbs from '@/components/Breadcrumbs'
 import {
   Dialog,
   DialogContent,
@@ -779,6 +780,11 @@ function CollaboratorForm() {
             alt="Lucro Claro" 
             style={{ height: '50px', width: 'auto' }}
           />
+        </div>
+
+        {/* Breadcrumbs */}
+        <div className="max-w-4xl mx-auto mb-6">
+          <Breadcrumbs />
         </div>
 
         <Card className="max-w-4xl mx-auto shadow-lg">
