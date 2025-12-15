@@ -4,6 +4,7 @@ import DashboardStats from '../components/DashboardStats'
 import ProjectList from '../components/ProjectList'
 import EvolutionChart from '../components/EvolutionChart'
 import TeamStatus from '../components/TeamStatus'
+import Breadcrumbs from '../components/Breadcrumbs'
 import { Button } from '@/components/ui/button'
 import { FileText, UserPlus } from 'lucide-react'
 import { getCollaborators, type Collaborator } from '@/utils/storage'
@@ -87,31 +88,34 @@ function Dashboard() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-muted/50 py-6">
-      <div className="max-w-7xl mx-auto px-5">
+    <div className="bg-muted/50 py-4 sm:py-6 pb-6 sm:pb-8">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-5 lg:px-6">
         {/* Header */}
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center mb-6 sm:mb-8">
           <img 
             src="/logo2.svg" 
             alt="Lucro Claro" 
-            style={{ height: '42px', width: 'auto' }}
+            className="h-10 sm:h-[42px] w-auto"
           />
         </div>
         
-        <div className="mb-8">
-          <div className="flex items-center justify-between flex-wrap gap-4">
+        {/* Breadcrumbs */}
+        <Breadcrumbs />
+        
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold" style={{ color: '#28314d' }}>
+              <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: '#28314d' }}>
                 Dashboard
               </h1>
               <p className="text-muted-foreground mt-1.5 text-sm">
                 Visão geral dos projetos e métricas
               </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
               <Button
                 onClick={handleNewContract}
-                className="flex items-center gap-2 text-sm"
+                className="flex items-center justify-center gap-2 text-sm w-full sm:w-auto"
                 style={{ backgroundColor: '#28314d', borderColor: '#28314d' }}
               >
                 <FileText className="h-4 w-4" />
@@ -120,7 +124,7 @@ function Dashboard() {
               <Button
                 onClick={handleNewCollaborator}
                 variant="outline"
-                className="flex items-center gap-2 text-sm border-primary/20"
+                className="flex items-center justify-center gap-2 text-sm border-primary/20 w-full sm:w-auto"
                 style={{ color: '#28314d' }}
               >
                 <UserPlus className="h-4 w-4" />
@@ -131,20 +135,20 @@ function Dashboard() {
         </div>
 
         {/* Stats Cards - Grid 12 colunas */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <DashboardStats projects={projects} />
         </div>
 
         {/* Conteúdo Principal - Grid 12 colunas */}
-        <div className="grid grid-cols-12 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-5">
           {/* Coluna Esquerda - 5 colunas */}
-          <div className="col-span-12 lg:col-span-5 space-y-5">
+          <div className="md:col-span-12 lg:col-span-5 space-y-4 sm:space-y-5">
             <TeamStatus professionals={professionals} />
             <EvolutionChart projects={projects} />
           </div>
 
           {/* Coluna Direita - 7 colunas */}
-          <div className="col-span-12 lg:col-span-7">
+          <div className="md:col-span-12 lg:col-span-7">
             <ProjectList projects={projects} />
           </div>
         </div>

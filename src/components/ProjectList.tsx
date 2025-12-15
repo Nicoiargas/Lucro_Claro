@@ -66,17 +66,17 @@ function ProjectList({ projects }: ProjectListProps) {
     if (projectList.length === 0) return null
 
     return (
-      <div className="mb-7 last:mb-0">
+      <div className="mb-5 sm:mb-7 last:mb-0">
         <div className="flex items-center gap-2 mb-3">
           <div
-            className="w-2.5 h-2.5 rounded-full"
+            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
             style={{ backgroundColor: getStatusColor(status) }}
           />
-          <h3 className="text-base font-semibold" style={{ color: '#28314d' }}>
+          <h3 className="text-sm sm:text-base font-semibold" style={{ color: '#28314d' }}>
             {title} ({projectList.length})
           </h3>
         </div>
-        <div className="space-y-2.5">
+        <div className="space-y-2 sm:space-y-2.5">
           {projectList.map((project) => (
             <div
               key={project.id}
@@ -86,12 +86,12 @@ function ProjectList({ projects }: ProjectListProps) {
                 backgroundColor: '#ffffff'
               }}
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
                 <div className="flex-grow min-w-0">
-                  <h4 className="font-semibold text-sm mb-1.5" style={{ color: '#28314d' }}>
+                  <h4 className="font-semibold text-sm mb-1.5 break-words" style={{ color: '#28314d' }}>
                     {project.name}
                   </h4>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-xs text-muted-foreground">
                     <span>Finaliza: {formatDate(project.endDate)}</span>
                     <span className="font-semibold" style={{ color: '#28314d' }}>
                       {formatCurrency(project.value)}
@@ -100,7 +100,7 @@ function ProjectList({ projects }: ProjectListProps) {
                 </div>
                 <Badge
                   variant={"outline" as const}
-                  className="text-xs"
+                  className="text-xs w-fit sm:w-auto"
                   style={{
                     backgroundColor: getStatusColor(status) + '20',
                     color: getStatusColor(status),
@@ -118,19 +118,19 @@ function ProjectList({ projects }: ProjectListProps) {
   }
 
   return (
-    <Card className="shadow-lg h-full">
+    <Card className="shadow-lg">
       <CardHeader className="pb-4">
-        <CardTitle className="text-lg" style={{ color: '#28314d' }}>Listagem de Projetos</CardTitle>
+        <CardTitle className="text-base sm:text-lg" style={{ color: '#28314d' }}>Listagem de Projetos</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-5">
+        <div className="space-y-4 sm:space-y-5">
           {renderProjectSection('Projetos Ativos', activeProjects, 'active')}
           {renderProjectSection('Projetos em Pausa', onHoldProjects, 'onhold')}
           {renderProjectSection('Projetos Finalizados', completedProjects, 'completed')}
         </div>
 
         {projects.length === 0 && (
-          <div className="text-center py-10 text-muted-foreground text-sm">
+          <div className="text-center py-8 sm:py-10 text-muted-foreground text-sm">
             Nenhum projeto cadastrado
           </div>
         )}

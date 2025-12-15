@@ -26,26 +26,26 @@ function EvolutionChart({}: EvolutionChartProps) {
   }
 
   return (
-    <Card className="shadow-lg h-full">
+    <Card className="shadow-lg">
       <CardHeader className="pb-4">
-        <CardTitle className="text-lg" style={{ color: '#28314d' }}>Evolução de Receita</CardTitle>
+        <CardTitle className="text-base sm:text-lg" style={{ color: '#28314d' }}>Evolução de Receita</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3.5">
+        <div className="space-y-3 sm:space-y-3.5">
           {monthlyData.map((data, index) => {
             const percentage = (data.value / maxValue) * 100
             
             return (
               <div key={index} className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium" style={{ color: '#28314d' }}>
+                <div className="flex items-center justify-between text-xs gap-2">
+                  <span className="font-medium flex-shrink-0" style={{ color: '#28314d' }}>
                     {data.month}
                   </span>
-                  <span className="font-semibold" style={{ color: '#28314d' }}>
+                  <span className="font-semibold text-right" style={{ color: '#28314d' }}>
                     {formatCurrency(data.value)}
                   </span>
                 </div>
-                <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
+                <div className="w-full bg-muted rounded-full h-2 sm:h-2.5 overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{
