@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Trash2, Save } from 'lucide-react'
+import { Trash2, Save, Plus } from 'lucide-react'
 import { getCollaborators, saveCollaborator, updateCollaborator, deleteCollaborator, canDeleteCollaborator, type Collaborator } from '@/utils/storage'
 import { validateCPF, validateEmail } from '@/utils/validation'
 import { getAllProjectsByCollaborator } from '@/utils/project-storage'
@@ -41,16 +41,26 @@ function CollaboratorForm() {
   const [formData, setFormData] = useState({
     // Dados Pessoais
     name: '',
+    personalEmail: '',
     email: '',
-    phone: '',
+    phones: [''] as string[],
     role: '',
     status: 'available' as 'busy' | 'available',
     
     // Informações de Projeto
     hourlyRate: '',
+    hoursPerMonth: '',
     monthlySalary: '',
+    netSalary: '',
+    invoiceValue: '',
+    taxPercentage: '',
+    materialSubscriptions: [] as Array<{ id: string; description: string; value: string }>,
     totalCost: '',
     allocationRate: '',
+    // Breakdown de impostos
+    inssValue: '',
+    irrfValue: '',
+    fgtsValue: '',
     
     // Informações de Contrato
     admissionDate: '',
@@ -87,6 +97,212 @@ function CollaboratorForm() {
   const [deleteConfirmed, setDeleteConfirmed] = useState(false)
   const [activeProjects, setActiveProjects] = useState<string[]>([])
   const [canDelete, setCanDelete] = useState(true)
+  
+  // Determina o tipo de contratação baseado no contractType
+  const getHonorariosContractType = (): 'PJ' | 'CLT' => {
+    if (formData.contractType === 'PJ') return 'PJ'
+    if (formData.contractType === 'CLT') return 'CLT'
+    // Default para CLT se não estiver definido
+    return 'CLT'
+  }
+
+  // Funções de cálculo de impostos CLT
+  const calculateINSS = (bruto: number): number => {
+    if (bruto <= 1412.00) {
+      return bruto * 0.075
+    } else if (bruto <= 2666.68) {
+      return 1412.00 * 0.075 + (bruto - 1412.00) * 0.09
+    } else if (bruto <= 4000.03) {
+      return 1412.00 * 0.075 + (2666.68 - 1412.00) * 0.09 + (bruto - 2666.68) * 0.12
+    } else if (bruto <= 7786.02) {
+      return 1412.00 * 0.075 + (2666.68 - 1412.00) * 0.09 + (4000.03 - 2666.68) * 0.12 + (bruto - 4000.03) * 0.14
+    } else {
+      return 908.85 // Teto do INSS
+    }
+  }
+
+  const calculateIRRF = (baseCalculo: number): number => {
+    if (baseCalculo <= 2112.00) {
+      return 0
+    } else if (baseCalculo <= 2826.65) {
+      return (baseCalculo - 2112.00) * 0.075
+    } else if (baseCalculo <= 3751.05) {
+      return (2826.65 - 2112.00) * 0.075 + (baseCalculo - 2826.65) * 0.15
+    } else if (baseCalculo <= 4664.68) {
+      return (2826.65 - 2112.00) * 0.075 + (3751.05 - 2826.65) * 0.15 + (baseCalculo - 3751.05) * 0.225
+    } else {
+      return (2826.65 - 2112.00) * 0.075 + (3751.05 - 2826.65) * 0.15 + (4664.68 - 3751.05) * 0.225 + (baseCalculo - 4664.68) * 0.275
+    }
+  }
+
+  const calculateFGTS = (bruto: number): number => {
+    return bruto * 0.08
+  }
+
+  // Cálculo reverso: dado o líquido, encontra o bruto
+  const calculateCLTReverse = (liquido: number): { bruto: number; inss: number; irrf: number; fgts: number } => {
+    // Usa iteração para encontrar o bruto que resulta no líquido desejado
+    let bruto = liquido
+    let tolerance = 0.01
+    let maxIterations = 100
+    let iteration = 0
+
+    while (iteration < maxIterations) {
+      const inss = calculateINSS(bruto)
+      const baseIRRF = bruto - inss
+      const irrf = calculateIRRF(baseIRRF)
+      const calculadoLiquido = bruto - inss - irrf
+
+      const diff = Math.abs(calculadoLiquido - liquido)
+      
+      if (diff < tolerance) {
+        const fgts = calculateFGTS(bruto)
+        return { bruto, inss, irrf, fgts }
+      }
+
+      // Ajusta o bruto baseado na diferença
+      bruto = bruto + (liquido - calculadoLiquido) * 1.5
+      iteration++
+    }
+
+    // Se não convergiu, retorna valores aproximados
+    const inss = calculateINSS(bruto)
+    const baseIRRF = bruto - inss
+    const irrf = calculateIRRF(baseIRRF)
+    const fgts = calculateFGTS(bruto)
+    return { bruto, inss, irrf, fgts }
+  }
+
+  const formatCurrency = (value: number): string => {
+    if (value === 0) return ''
+    return new Intl.NumberFormat('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value)
+  }
+
+  const parseCurrency = (value: string): number => {
+    if (!value) return 0
+    const cleaned = value.replace(/[^\d,]/g, '').replace(',', '.')
+    return parseFloat(cleaned) || 0
+  }
+
+  const parsePercentage = (value: string): number => {
+    if (!value) return 0
+    const cleaned = value.replace(/[^\d,]/g, '').replace(',', '.')
+    return parseFloat(cleaned) || 0
+  }
+
+  // Funções para gerenciar Material e Assinaturas
+  const addMaterialSubscription = () => {
+    setFormData(prev => ({
+      ...prev,
+      materialSubscriptions: [
+        ...prev.materialSubscriptions,
+        { id: Date.now().toString(), description: '', value: '' }
+      ]
+    }))
+  }
+
+  const removeMaterialSubscription = (id: string) => {
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        materialSubscriptions: prev.materialSubscriptions.filter(item => item.id !== id)
+      }
+      
+      // Recalcula o total
+      const contractType = prev.contractType === 'PJ' ? 'PJ' : prev.contractType === 'CLT' ? 'CLT' : 'CLT'
+      const materialTotal = updated.materialSubscriptions.reduce(
+        (sum, item) => sum + parseCurrency(item.value),
+        0
+      )
+      
+      if (contractType === 'CLT' && updated.monthlySalary) {
+        const bruto = parseCurrency(updated.monthlySalary)
+        const fgts = parseCurrency(updated.fgtsValue)
+        const total = bruto + fgts + materialTotal
+        updated.totalCost = formatCurrency(total)
+      } else if (contractType === 'PJ') {
+        // Calcula baseado em valor/hora × horas/mês OU nota fiscal
+        let baseValue = 0
+        const hourlyRate = parseCurrency(updated.hourlyRate)
+        const hoursPerMonth = parseFloat(updated.hoursPerMonth) || 0
+        
+        if (hourlyRate > 0 && hoursPerMonth > 0) {
+          baseValue = hourlyRate * hoursPerMonth
+        } else if (updated.invoiceValue) {
+          baseValue = parseCurrency(updated.invoiceValue)
+        }
+        
+        const total = baseValue + materialTotal
+        updated.totalCost = formatCurrency(total)
+      }
+      
+      return updated
+    })
+  }
+
+  const updateMaterialSubscription = (id: string, field: 'description' | 'value', newValue: string) => {
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        materialSubscriptions: prev.materialSubscriptions.map(item =>
+          item.id === id ? { ...item, [field]: newValue } : item
+        )
+      }
+      
+      // Recalcula o total quando o valor muda
+      if (field === 'value') {
+        const contractType = getHonorariosContractType()
+        const materialTotal = updated.materialSubscriptions.reduce(
+          (sum, item) => sum + parseCurrency(item.value),
+          0
+        )
+        
+        if (contractType === 'CLT' && updated.monthlySalary) {
+          const bruto = parseCurrency(updated.monthlySalary)
+          const fgts = parseCurrency(updated.fgtsValue)
+          const total = bruto + fgts + materialTotal
+          updated.totalCost = formatCurrency(total)
+        } else if (contractType === 'PJ') {
+          // Calcula baseado em valor/hora × horas/mês OU nota fiscal
+          let baseValue = 0
+          const hourlyRate = parseCurrency(updated.hourlyRate)
+          const hoursPerMonth = parseFloat(updated.hoursPerMonth) || 0
+          
+          if (hourlyRate > 0 && hoursPerMonth > 0) {
+            baseValue = hourlyRate * hoursPerMonth
+          } else if (updated.invoiceValue) {
+            baseValue = parseCurrency(updated.invoiceValue)
+          }
+          
+          const total = baseValue + materialTotal
+          updated.totalCost = formatCurrency(total)
+        }
+      }
+      
+      return updated
+    })
+  }
+
+  const calculateMaterialTotal = (): number => {
+    return formData.materialSubscriptions.reduce(
+      (sum, item) => sum + parseCurrency(item.value),
+      0
+    )
+  }
+
+  const calculateTotalCost = (monthlySalary: string, taxPercentage: string, materialSubscriptions: string): string => {
+    const salary = parseCurrency(monthlySalary)
+    const taxPercent = parsePercentage(taxPercentage)
+    const material = parseCurrency(materialSubscriptions)
+    
+    const taxAmount = salary * (taxPercent / 100)
+    const total = salary + taxAmount + material
+    
+    return formatCurrency(total)
+  }
 
   useEffect(() => {
     if (isEdit && id) {
@@ -95,14 +311,27 @@ function CollaboratorForm() {
       if (collaborator) {
         setFormData({
           name: collaborator.name || '',
+          personalEmail: collaborator.personalEmail || '',
           email: collaborator.email || '',
-          phone: collaborator.phone || '',
+          phones: Array.isArray(collaborator.phone) ? collaborator.phone : collaborator.phone ? [collaborator.phone] : [''],
           role: collaborator.role || '',
           status: collaborator.status || 'available',
           hourlyRate: collaborator.hourlyRate || '',
+          hoursPerMonth: collaborator.hoursPerMonth || '',
           monthlySalary: collaborator.monthlySalary || '',
+          netSalary: collaborator.netSalary || '',
+          invoiceValue: collaborator.invoiceValue || '',
+          taxPercentage: collaborator.taxPercentage || '',
+          materialSubscriptions: Array.isArray(collaborator.materialSubscriptions)
+            ? collaborator.materialSubscriptions
+            : collaborator.materialSubscriptions
+              ? [{ id: Date.now().toString(), description: 'Material e Assinaturas', value: collaborator.materialSubscriptions }]
+              : [],
           totalCost: collaborator.totalCost || '',
           allocationRate: collaborator.allocationRate || '',
+          inssValue: collaborator.inssValue || '',
+          irrfValue: collaborator.irrfValue || '',
+          fgtsValue: collaborator.fgtsValue || '',
           admissionDate: collaborator.admissionDate || '',
           terminationDate: collaborator.terminationDate || '',
           contractType: collaborator.contractType || '',
@@ -125,17 +354,215 @@ function CollaboratorForm() {
           healthInsurance: collaborator.healthInsurance || '',
           healthInsuranceNumber: collaborator.healthInsuranceNumber || '',
         })
+        
+        // Calcula o totalCost se houver dados (modo legado)
+        if (collaborator.monthlySalary || collaborator.taxPercentage) {
+          const materialValue = typeof collaborator.materialSubscriptions === 'string' 
+            ? collaborator.materialSubscriptions 
+            : Array.isArray(collaborator.materialSubscriptions)
+              ? collaborator.materialSubscriptions.reduce((sum, item) => sum + parseCurrency(item.value), 0).toString()
+              : ''
+          const calculated = calculateTotalCost(
+            collaborator.monthlySalary || '',
+            collaborator.taxPercentage || '',
+            materialValue
+          )
+          if (calculated) {
+            setFormData(prev => ({ ...prev, totalCost: calculated }))
+          }
+        }
       }
     }
   }, [isEdit, id])
 
+  // Recalcula quando o tipo de contrato muda (apenas se houver dados)
+  useEffect(() => {
+    const contractType = getHonorariosContractType()
+    const materialTotal = formData.materialSubscriptions.reduce(
+      (sum, item) => sum + parseCurrency(item.value),
+      0
+    )
+    
+    if (contractType === 'CLT' && formData.netSalary) {
+      const liquido = parseCurrency(formData.netSalary)
+      if (liquido > 0) {
+        const { bruto, inss, irrf, fgts } = calculateCLTReverse(liquido)
+        const newBruto = formatCurrency(bruto)
+        const newInss = formatCurrency(inss)
+        const newIrrf = formatCurrency(irrf)
+        const newFgts = formatCurrency(fgts)
+        const newTotal = formatCurrency(bruto + fgts + materialTotal)
+        
+        setFormData(prev => {
+          // Só atualiza se os valores mudaram para evitar loops
+          if (prev.monthlySalary !== newBruto || prev.totalCost !== newTotal) {
+            return {
+              ...prev,
+              monthlySalary: newBruto,
+              inssValue: newInss,
+              irrfValue: newIrrf,
+              fgtsValue: newFgts,
+              totalCost: newTotal
+            }
+          }
+          return prev
+        })
+      }
+    } else if (contractType === 'PJ') {
+      // Calcula baseado em valor/hora × horas/mês OU nota fiscal
+      let baseValue = 0
+      const hourlyRate = parseCurrency(formData.hourlyRate)
+      const hoursPerMonth = parseFloat(formData.hoursPerMonth) || 0
+      
+      if (hourlyRate > 0 && hoursPerMonth > 0) {
+        // Usa valor/hora × horas/mês
+        baseValue = hourlyRate * hoursPerMonth
+      } else if (formData.invoiceValue) {
+        // Usa nota fiscal
+        baseValue = parseCurrency(formData.invoiceValue)
+      }
+      
+      const newTotal = formatCurrency(baseValue + materialTotal)
+      
+      setFormData(prev => {
+        if (prev.totalCost !== newTotal) {
+          return { ...prev, totalCost: newTotal }
+        }
+        return prev
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.contractType, formData.materialSubscriptions, formData.hourlyRate, formData.hoursPerMonth, formData.invoiceValue])
+
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value }
+      const contractType = field === 'contractType' ? (value as 'PJ' | 'CLT' | '') : prev.contractType
+      const honorariosType = contractType === 'PJ' ? 'PJ' : contractType === 'CLT' ? 'CLT' : 'CLT'
+      
+      // Limpa campos quando muda o tipo de contrato
+      if (field === 'contractType') {
+        if (value === 'PJ') {
+          updated.netSalary = ''
+          updated.monthlySalary = ''
+          updated.inssValue = ''
+          updated.irrfValue = ''
+          updated.fgtsValue = ''
+        } else if (value === 'CLT') {
+          updated.invoiceValue = ''
+        }
+      }
+      
+      // Cálculo para CLT: quando líquido muda, calcula bruto e impostos
+      if (honorariosType === 'CLT' && field === 'netSalary') {
+        const liquido = parseCurrency(value)
+        if (liquido > 0) {
+          const { bruto, inss, irrf, fgts } = calculateCLTReverse(liquido)
+          updated.monthlySalary = formatCurrency(bruto)
+          updated.inssValue = formatCurrency(inss)
+          updated.irrfValue = formatCurrency(irrf)
+          updated.fgtsValue = formatCurrency(fgts)
+          
+          const materialTotal = updated.materialSubscriptions.reduce(
+            (sum, item) => sum + parseCurrency(item.value),
+            0
+          )
+          const total = bruto + fgts + materialTotal
+          updated.totalCost = formatCurrency(total)
+        } else {
+          updated.monthlySalary = ''
+          updated.inssValue = ''
+          updated.irrfValue = ''
+          updated.fgtsValue = ''
+          updated.totalCost = ''
+        }
+      }
+      
+      // Cálculo para PJ: quando valor/hora, horas/mês ou nota fiscal mudam
+      if (honorariosType === 'PJ' && (field === 'hourlyRate' || field === 'hoursPerMonth' || field === 'invoiceValue')) {
+        const materialTotal = updated.materialSubscriptions.reduce(
+          (sum, item) => sum + parseCurrency(item.value),
+          0
+        )
+        
+        // Calcula baseado em valor/hora × horas/mês OU nota fiscal
+        let baseValue = 0
+        const hourlyRate = parseCurrency(updated.hourlyRate)
+        const hoursPerMonth = parseFloat(updated.hoursPerMonth) || 0
+        
+        if (hourlyRate > 0 && hoursPerMonth > 0) {
+          // Usa valor/hora × horas/mês (prioridade)
+          baseValue = hourlyRate * hoursPerMonth
+        } else if (updated.invoiceValue) {
+          // Usa nota fiscal
+          baseValue = parseCurrency(updated.invoiceValue)
+        }
+        
+        const total = baseValue + materialTotal
+        updated.totalCost = formatCurrency(total)
+      }
+      
+      // Modo legado: calcula o totalCost automaticamente quando monthlySalary ou taxPercentage mudam
+      if (field === 'monthlySalary' || field === 'taxPercentage') {
+        if (!updated.netSalary && !updated.invoiceValue) {
+          const materialTotal = updated.materialSubscriptions.reduce(
+            (sum, item) => sum + parseCurrency(item.value),
+            0
+          )
+          updated.totalCost = calculateTotalCost(
+            field === 'monthlySalary' ? value : updated.monthlySalary,
+            field === 'taxPercentage' ? value : updated.taxPercentage,
+            formatCurrency(materialTotal)
+          )
+        }
+      }
+      
+      return updated
+    })
     // Remove erro do campo quando usuário começa a digitar
     if (errors[field]) {
       setErrors(prev => {
         const newErrors = { ...prev }
         delete newErrors[field]
+        return newErrors
+      })
+    }
+  }
+
+  const handlePhoneChange = (index: number, value: string) => {
+    setFormData(prev => {
+      const newPhones = [...prev.phones]
+      newPhones[index] = value
+      return { ...prev, phones: newPhones }
+    })
+    // Remove erro do campo quando usuário começa a digitar
+    if (errors[`phone-${index}`] || errors.phone) {
+      setErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[`phone-${index}`]
+        delete newErrors.phone
+        return newErrors
+      })
+    }
+  }
+
+  const addPhone = () => {
+    setFormData(prev => ({
+      ...prev,
+      phones: [...prev.phones, '']
+    }))
+  }
+
+  const removePhone = (index: number) => {
+    if (formData.phones.length > 1) {
+      setFormData(prev => {
+        const newPhones = prev.phones.filter((_, i) => i !== index)
+        return { ...prev, phones: newPhones }
+      })
+      // Remove erro do campo removido
+      setErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[`phone-${index}`]
         return newErrors
       })
     }
@@ -156,19 +583,58 @@ function CollaboratorForm() {
 
     // Validação de campos obrigatórios
     if (!formData.name) newErrors.name = 'Nome completo é obrigatório'
-    if (!formData.email) {
-      newErrors.email = 'Email é obrigatório'
-    } else if (!validateEmail(formData.email)) {
-      newErrors.email = 'Email inválido'
+    if (formData.personalEmail && !validateEmail(formData.personalEmail)) {
+      newErrors.personalEmail = 'Email pessoal inválido'
     }
-    if (!formData.phone) newErrors.phone = 'Telefone é obrigatório'
+    if (!formData.email) {
+      newErrors.email = 'Email profissional é obrigatório'
+    } else if (!validateEmail(formData.email)) {
+      newErrors.email = 'Email profissional inválido'
+    }
+    // Validação de telefones - pelo menos um telefone é obrigatório
+    const validPhones = formData.phones.filter(phone => phone.trim() !== '')
+    if (validPhones.length === 0) {
+      newErrors.phone = 'Pelo menos um telefone é obrigatório'
+    }
     if (!formData.role) newErrors.role = 'Cargo/Função é obrigatório'
     
-    // Informações de Projeto
-    if (!formData.hourlyRate) newErrors.hourlyRate = 'Salário/hora é obrigatório'
-    if (!formData.monthlySalary) newErrors.monthlySalary = 'Salário mensal é obrigatório'
-    if (!formData.totalCost) newErrors.totalCost = 'Custo total é obrigatório'
-    if (!formData.allocationRate) newErrors.allocationRate = 'Taxa de alocação é obrigatória'
+    // Informações de Horários (validação baseada no tipo de contratação)
+    const honorariosType = getHonorariosContractType()
+    if (honorariosType === 'CLT') {
+      if (!formData.netSalary) {
+        newErrors.netSalary = 'Salário líquido é obrigatório para CLT'
+      } else {
+        const liquido = parseCurrency(formData.netSalary)
+        if (liquido <= 0) {
+          newErrors.netSalary = 'Salário líquido deve ser maior que zero'
+        }
+      }
+      if (!formData.monthlySalary) {
+        newErrors.monthlySalary = 'Salário bruto não pôde ser calculado'
+      }
+    } else {
+      // PJ - deve ter OU (valor/hora + horas/mês) OU nota fiscal
+      const hourlyRate = parseCurrency(formData.hourlyRate)
+      const hoursPerMonth = parseFloat(formData.hoursPerMonth) || 0
+      const invoice = parseCurrency(formData.invoiceValue)
+      
+      const hasHourlyCalculation = hourlyRate > 0 && hoursPerMonth > 0
+      const hasInvoice = invoice > 0
+      
+      if (!hasHourlyCalculation && !hasInvoice) {
+        newErrors.invoiceValue = 'Preencha Valor/Hora + Horas/Mês OU Valor da Nota Fiscal para PJ'
+      } else if (hasHourlyCalculation && hasInvoice) {
+        // Se ambos estão preenchidos, prioriza valor/hora × horas
+        // Não precisa de erro, mas pode avisar
+      }
+    }
+    
+    if (!formData.totalCost) {
+      newErrors.totalCost = 'Custo total é obrigatório'
+    }
+    if (!formData.allocationRate) {
+      newErrors.allocationRate = 'Taxa de alocação é obrigatória'
+    }
     
     // Informações de Contrato
     if (!formData.admissionDate) newErrors.admissionDate = 'Data de admissão é obrigatória'
@@ -212,15 +678,27 @@ function CollaboratorForm() {
       return
     }
 
+    const validPhones = formData.phones.filter(phone => phone.trim() !== '')
+    const phoneValue = validPhones.length === 1 ? validPhones[0] : validPhones
+
     const collaboratorData: Omit<Collaborator, 'id'> = {
       name: formData.name,
+      personalEmail: formData.personalEmail || undefined,
       email: formData.email,
-      phone: formData.phone,
+      phone: phoneValue,
       role: formData.role,
       status: formData.status,
-      hourlyRate: formData.hourlyRate,
-      monthlySalary: formData.monthlySalary,
+      hourlyRate: formData.hourlyRate || undefined,
+      hoursPerMonth: formData.hoursPerMonth || undefined,
+      monthlySalary: formData.monthlySalary || undefined,
+      netSalary: formData.netSalary || undefined,
+      invoiceValue: formData.invoiceValue || undefined,
+      taxPercentage: formData.taxPercentage || undefined,
+      materialSubscriptions: formData.materialSubscriptions.length > 0 ? formData.materialSubscriptions : undefined,
       totalCost: formData.totalCost,
+      inssValue: formData.inssValue || undefined,
+      irrfValue: formData.irrfValue || undefined,
+      fgtsValue: formData.fgtsValue || undefined,
       allocationRate: formData.allocationRate,
       admissionDate: formData.admissionDate,
       terminationDate: formData.terminationDate || undefined,
@@ -317,14 +795,13 @@ function CollaboratorForm() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="personal" className="w-full">
-              <TabsList className={`grid w-full ${isEdit ? 'grid-cols-7' : 'grid-cols-6'}`}>
-                <TabsTrigger value="personal">Dados Pessoais</TabsTrigger>
-                <TabsTrigger value="project">Projeto</TabsTrigger>
-                <TabsTrigger value="contract">Contrato</TabsTrigger>
-                <TabsTrigger value="financial">Financeiro</TabsTrigger>
-                <TabsTrigger value="address">Endereço</TabsTrigger>
-                <TabsTrigger value="health">Saúde</TabsTrigger>
-                {isEdit && <TabsTrigger value="history">Histórico</TabsTrigger>}
+              <TabsList className={`!grid !w-full gap-1 ${isEdit ? 'grid-cols-6' : 'grid-cols-5'} !h-auto p-1`}>
+                <TabsTrigger value="personal" className="text-xs px-2 py-2 whitespace-normal text-center leading-tight min-h-[2.5rem] w-full flex items-center justify-center">Dados Pessoais</TabsTrigger>
+                <TabsTrigger value="contract" className="text-xs px-2 py-2 whitespace-normal text-center leading-tight min-h-[2.5rem] w-full flex items-center justify-center">Contrato</TabsTrigger>
+                <TabsTrigger value="financial" className="text-xs px-2 py-2 whitespace-normal text-center leading-tight min-h-[2.5rem] w-full flex items-center justify-center">Financeiro</TabsTrigger>
+                <TabsTrigger value="address" className="text-xs px-2 py-2 whitespace-normal text-center leading-tight min-h-[2.5rem] w-full flex items-center justify-center">Endereço</TabsTrigger>
+                <TabsTrigger value="health" className="text-xs px-2 py-2 whitespace-normal text-center leading-tight min-h-[2.5rem] w-full flex items-center justify-center">Saúde</TabsTrigger>
+                {isEdit && <TabsTrigger value="history" className="text-xs px-2 py-2 whitespace-normal text-center leading-tight min-h-[2.5rem] w-full flex items-center justify-center">Histórico</TabsTrigger>}
               </TabsList>
 
               {/* Aba 1: Dados Pessoais */}
@@ -359,8 +836,23 @@ function CollaboratorForm() {
                   </div>
 
                   <div className="space-y-2">
+                    <Label htmlFor="personalEmail" style={{ color: '#28314d' }}>
+                      Email Pessoal
+                    </Label>
+                    <Input
+                      id="personalEmail"
+                      type="email"
+                      value={formData.personalEmail}
+                      onChange={(e) => handleInputChange('personalEmail', e.target.value)}
+                      placeholder="email.pessoal@email.com"
+                      className={`border-primary/20 focus:border-primary ${errors.personalEmail ? 'border-destructive' : ''}`}
+                    />
+                    {errors.personalEmail && <p className="text-sm text-destructive">{errors.personalEmail}</p>}
+                  </div>
+
+                  <div className="space-y-2">
                     <Label htmlFor="email" style={{ color: '#28314d' }}>
-                      Email *
+                      Email Profissional *
                     </Label>
                     <Input
                       id="email"
@@ -374,15 +866,45 @@ function CollaboratorForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="phone" style={{ color: '#28314d' }}>
-                      Telefone *
+                    <Label style={{ color: '#28314d' }}>
+                      Telefone(s) *
                     </Label>
-                    <PhoneInput
-                      id="phone"
-                      value={formData.phone}
-                      onChange={(value) => handleInputChange('phone', value)}
-                      className={`border-primary/20 focus:border-primary ${errors.phone ? 'border-destructive' : ''}`}
-                    />
+                    <div className="space-y-2">
+                      {formData.phones.map((phone, index) => (
+                        <div key={index} className="flex gap-2 items-start">
+                          <div className="flex-1">
+                            <PhoneInput
+                              id={`phone-${index}`}
+                              value={phone}
+                              onChange={(value) => handlePhoneChange(index, value)}
+                              className={`border-primary/20 focus:border-primary ${errors[`phone-${index}`] || errors.phone ? 'border-destructive' : ''}`}
+                            />
+                          </div>
+                          {formData.phones.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => removePhone(index)}
+                              className="mt-0 h-10 w-10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {index === formData.phones.length - 1 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={addPhone}
+                              className="mt-0 h-10 w-10"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                     {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
                   </div>
 
@@ -408,64 +930,7 @@ function CollaboratorForm() {
                 </div>
               </TabsContent>
 
-              {/* Aba 2: Informações de Projeto */}
-              <TabsContent value="project" className="space-y-4 mt-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="hourlyRate" style={{ color: '#28314d' }}>
-                      Salário/Hora *
-                    </Label>
-                    <CurrencyInput
-                      id="hourlyRate"
-                      value={formData.hourlyRate}
-                      onChange={(value) => handleInputChange('hourlyRate', value)}
-                      className={`border-primary/20 focus:border-primary ${errors.hourlyRate ? 'border-destructive' : ''}`}
-                    />
-                    {errors.hourlyRate && <p className="text-sm text-destructive">{errors.hourlyRate}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="monthlySalary" style={{ color: '#28314d' }}>
-                      Salário Mensal Fixo *
-                    </Label>
-                    <CurrencyInput
-                      id="monthlySalary"
-                      value={formData.monthlySalary}
-                      onChange={(value) => handleInputChange('monthlySalary', value)}
-                      className={`border-primary/20 focus:border-primary ${errors.monthlySalary ? 'border-destructive' : ''}`}
-                    />
-                    {errors.monthlySalary && <p className="text-sm text-destructive">{errors.monthlySalary}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="totalCost" style={{ color: '#28314d' }}>
-                      Custo Total (Salário + Encargos) *
-                    </Label>
-                    <CurrencyInput
-                      id="totalCost"
-                      value={formData.totalCost}
-                      onChange={(value) => handleInputChange('totalCost', value)}
-                      className={`border-primary/20 focus:border-primary ${errors.totalCost ? 'border-destructive' : ''}`}
-                    />
-                    {errors.totalCost && <p className="text-sm text-destructive">{errors.totalCost}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="allocationRate" style={{ color: '#28314d' }}>
-                      Taxa de Alocação *
-                    </Label>
-                    <PercentageInput
-                      id="allocationRate"
-                      value={formData.allocationRate}
-                      onChange={(value) => handleInputChange('allocationRate', value)}
-                      className={`border-primary/20 focus:border-primary ${errors.allocationRate ? 'border-destructive' : ''}`}
-                    />
-                    {errors.allocationRate && <p className="text-sm text-destructive">{errors.allocationRate}</p>}
-                  </div>
-                </div>
-              </TabsContent>
-
-              {/* Aba 3: Informações de Contrato */}
+              {/* Aba 2: Contrato */}
               <TabsContent value="contract" className="space-y-4 mt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -533,9 +998,280 @@ function CollaboratorForm() {
                     />
                   </div>
                 </div>
+
+                {/* Horários */}
+                <div className="mt-8 pt-6 border-t">
+                  <h3 className="text-lg font-semibold mb-4" style={{ color: '#28314d' }}>
+                    Horários
+                  </h3>
+                  {!formData.contractType && (
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Selecione o tipo de contrato acima para configurar os horários
+                    </p>
+                  )}
+
+                  {getHonorariosContractType() === 'CLT' ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="netSalary" style={{ color: '#28314d' }}>
+                            Salário Líquido *
+                          </Label>
+                          <CurrencyInput
+                            id="netSalary"
+                            value={formData.netSalary}
+                            onChange={(value) => handleInputChange('netSalary', value)}
+                            className={`border-primary/20 focus:border-primary ${errors.netSalary ? 'border-destructive' : ''}`}
+                            placeholder="Valor que o profissional recebe"
+                          />
+                          {errors.netSalary && <p className="text-sm text-destructive">{errors.netSalary}</p>}
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="monthlySalary" style={{ color: '#28314d' }}>
+                            Salário Bruto (calculado)
+                          </Label>
+                          <CurrencyInput
+                            id="monthlySalary"
+                            value={formData.monthlySalary}
+                            readOnly
+                            className="border-primary/20 bg-muted cursor-not-allowed"
+                          />
+                        </div>
+                      </div>
+
+                      {formData.inssValue && (
+                        <div className="bg-muted/50 p-4 rounded-lg">
+                          <h4 className="text-sm font-semibold mb-2" style={{ color: '#28314d' }}>
+                            Impostos:
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">INSS:</span>{' '}
+                              <span className="font-medium">R$ {formData.inssValue}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">IRRF:</span>{' '}
+                              <span className="font-medium">R$ {formData.irrfValue}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">FGTS:</span>{' '}
+                              <span className="font-medium">R$ {formData.fgtsValue}</span>
+                              <span className="text-xs text-muted-foreground ml-1">(8% sobre bruto)</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label style={{ color: '#28314d' }}>
+                              Material e Assinaturas
+                            </Label>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={addMaterialSubscription}
+                              className="h-8"
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Adicionar
+                            </Button>
+                          </div>
+                          <div className="space-y-2">
+                            {formData.materialSubscriptions.map((item, index) => (
+                              <div key={item.id} className="flex gap-2 items-start">
+                                <div className="flex-1 flex gap-2">
+                                  <Input
+                                    value={item.description}
+                                    onChange={(e) => updateMaterialSubscription(item.id, 'description', e.target.value)}
+                                    placeholder="Descrição (ex: Assinatura Adobe)"
+                                    className="border-primary/20 focus:border-primary flex-[3]"
+                                  />
+                                  <CurrencyInput
+                                    value={item.value}
+                                    onChange={(value) => updateMaterialSubscription(item.id, 'value', value)}
+                                    className="border-primary/20 focus:border-primary flex-[1]"
+                                    placeholder="Valor"
+                                  />
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => removeMaterialSubscription(item.id)}
+                                  className="h-10 w-10 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            {formData.materialSubscriptions.length === 0 && (
+                              <p className="text-sm text-muted-foreground">
+                                Nenhum item adicionado. Clique em "Adicionar" para incluir custos de material e assinaturas.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="totalCost" style={{ color: '#28314d' }}>
+                            Custo Total (calculado) *
+                          </Label>
+                          <CurrencyInput
+                            id="totalCost"
+                            value={formData.totalCost}
+                            readOnly
+                            className="border-primary/20 bg-muted cursor-not-allowed"
+                          />
+                          {errors.totalCost && <p className="text-sm text-destructive">{errors.totalCost}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="hourlyRate" style={{ color: '#28314d' }}>
+                              Valor/Hora
+                            </Label>
+                            <div className="flex gap-2 items-end">
+                              <div className="flex-[2]">
+                                <CurrencyInput
+                                  id="hourlyRate"
+                                  value={formData.hourlyRate}
+                                  onChange={(value) => handleInputChange('hourlyRate', value)}
+                                  className={`border-primary/20 focus:border-primary ${errors.hourlyRate ? 'border-destructive' : ''}`}
+                                  placeholder="Ex: 150,00"
+                                />
+                              </div>
+                              <div className="flex-[1]">
+                                <Label htmlFor="hoursPerMonth" className="text-xs text-muted-foreground mb-1 block">
+                                  Horas/Mês
+                                </Label>
+                                <Input
+                                  id="hoursPerMonth"
+                                  type="number"
+                                  value={formData.hoursPerMonth}
+                                  onChange={(e) => handleInputChange('hoursPerMonth', e.target.value)}
+                                  className="border-primary/20 focus:border-primary h-10"
+                                  placeholder="Ex: 160"
+                                  min="0"
+                                />
+                              </div>
+                            </div>
+                            {errors.hourlyRate && <p className="text-sm text-destructive">{errors.hourlyRate}</p>}
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="invoiceValue" style={{ color: '#28314d' }}>
+                              Valor da Nota Fiscal Mensal *
+                            </Label>
+                            <CurrencyInput
+                              id="invoiceValue"
+                              value={formData.invoiceValue}
+                              onChange={(value) => handleInputChange('invoiceValue', value)}
+                              className={`border-primary/20 focus:border-primary ${errors.invoiceValue ? 'border-destructive' : ''}`}
+                              placeholder="Valor da nota fiscal"
+                            />
+                            {errors.invoiceValue && <p className="text-sm text-destructive">{errors.invoiceValue}</p>}
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Preencha <strong>Valor/Hora + Horas/Mês</strong> OU <strong>Valor da Nota Fiscal</strong>. O sistema calculará automaticamente o custo total.
+                        </p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label style={{ color: '#28314d' }}>
+                              Material e Assinaturas
+                            </Label>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={addMaterialSubscription}
+                              className="h-8"
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Adicionar
+                            </Button>
+                          </div>
+                          <div className="space-y-2">
+                            {formData.materialSubscriptions.map((item, index) => (
+                              <div key={item.id} className="flex gap-2 items-start">
+                                <div className="flex-1 flex gap-2">
+                                  <Input
+                                    value={item.description}
+                                    onChange={(e) => updateMaterialSubscription(item.id, 'description', e.target.value)}
+                                    placeholder="Descrição (ex: Assinatura Adobe)"
+                                    className="border-primary/20 focus:border-primary flex-[3]"
+                                  />
+                                  <CurrencyInput
+                                    value={item.value}
+                                    onChange={(value) => updateMaterialSubscription(item.id, 'value', value)}
+                                    className="border-primary/20 focus:border-primary flex-[1]"
+                                    placeholder="Valor"
+                                  />
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => removeMaterialSubscription(item.id)}
+                                  className="h-10 w-10 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            {formData.materialSubscriptions.length === 0 && (
+                              <p className="text-sm text-muted-foreground">
+                                Nenhum item adicionado. Clique em "Adicionar" para incluir custos de material e assinaturas.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="totalCost" style={{ color: '#28314d' }}>
+                            Custo Total (calculado) *
+                          </Label>
+                          <CurrencyInput
+                            id="totalCost"
+                            value={formData.totalCost}
+                            readOnly
+                            className="border-primary/20 bg-muted cursor-not-allowed"
+                          />
+                          {errors.totalCost && <p className="text-sm text-destructive">{errors.totalCost}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="allocationRate" style={{ color: '#28314d' }}>
+                        Taxa de Alocação *
+                      </Label>
+                      <PercentageInput
+                        id="allocationRate"
+                        value={formData.allocationRate}
+                        onChange={(value) => handleInputChange('allocationRate', value)}
+                        className={`border-primary/20 focus:border-primary ${errors.allocationRate ? 'border-destructive' : ''}`}
+                      />
+                      {errors.allocationRate && <p className="text-sm text-destructive">{errors.allocationRate}</p>}
+                    </div>
+                  </div>
+                </div>
               </TabsContent>
 
-              {/* Aba 4: Dados Financeiros */}
+              {/* Aba 3: Dados Financeiros */}
               <TabsContent value="financial" className="space-y-4 mt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -618,7 +1354,7 @@ function CollaboratorForm() {
                 </div>
               </TabsContent>
 
-              {/* Aba 5: Endereço */}
+              {/* Aba 4: Endereço */}
               <TabsContent value="address" className="space-y-4 mt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -721,7 +1457,7 @@ function CollaboratorForm() {
                 </div>
               </TabsContent>
 
-              {/* Aba 6: Informações de Saúde */}
+              {/* Aba 5: Informações de Saúde */}
               <TabsContent value="health" className="space-y-4 mt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2 md:col-span-2">
@@ -790,7 +1526,7 @@ function CollaboratorForm() {
                 </div>
               </TabsContent>
 
-              {/* Aba 7: Histórico */}
+              {/* Aba 6: Histórico */}
               {isEdit && (
                 <TabsContent value="history" className="space-y-4 mt-6">
                   <div className="space-y-6">
