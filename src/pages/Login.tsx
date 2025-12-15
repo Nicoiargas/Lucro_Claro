@@ -10,7 +10,7 @@ function Login() {
             <img 
               src="/logo2.svg" 
               alt="Lucro Claro" 
-              style={{ height: '150px', width: 'auto' }}
+              style={{ height: '135px', width: 'auto' }}
             />
           </div>
           <LoginForm />
