@@ -10,5 +10,171 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Client {
+  id        String    @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  cnpj      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  projects  Project[]
+
+  @@map("clients")
+}
+
+model Collaborator {
+  id                    String    @id @default(cuid())
+  // Dados Pessoais
+  name                  String
+  email                 String
+  phone                 String
+  role                  String
+  status                String    @default("available") // busy | available
+  
+  // Informações de Projeto
+  hourlyRate            String?
+  monthlySalary         String?
+  totalCost             String?
+  allocationRate        String?
+  
+  // Informações de Contrato
+  admissionDate         String?
+  terminationDate       String?
+  contractType          String?   // CLT | PJ | Estágio | Freelancer | Outro
+  probationPeriod       Int?
+  
+  // Dados Financeiros
+  cpf                   String?
+  rg                    String?
+  bank                  String?
+  agency                String?
+  account               String?
+  pisPasep              String?
+  
+  // Endereço
+  cep                   String?
+  street                String?
+  number                String?
+  complement            String?
+  neighborhood          String?
+  city                  String?
+  state                 String?
+  
+  // Informações de Saúde
+  allergies             String?
+  bloodType             String?
+  healthInsurance       String?
+  healthInsuranceNumber String?
+  
+  currentProject        String?
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  // Relações
+  projectCollaborators  ProjectCollaborator[]
+  salaryHistory         SalaryHistory[]
+  projectHistory        ProjectHistory[]
+
+  @@map("collaborators")
+}
+
+model Project {
+  id            String    @id @default(cuid())
+  projectName   String
+  clientId      String
+  startDate     String
+  endDate       String
+  contractType  String    @default("fixed") // fixed | monthly
+  value         String
+  status        String    @default("active") // active | completed | onhold
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relações
+  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  collaborators ProjectCollaborator[]
+  expenses      Expense[]
+  taxes         Tax[]
+
+  @@map("projects")
+}
+
+model ProjectCollaborator {
+  id            String    @id @default(cuid())
+  projectId     String
+  collaboratorId String
+  customHourlyRate String? // Custo customizado para este projeto
+  
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  collaborator  Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime  @default(now())
+  
+  @@unique([projectId, collaboratorId])
+  @@map("project_collaborators")
+}
+
+model Expense {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+  value     String
+  
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@map("expenses")
+}
+
+model Tax {
+  id         String   @id @default(cuid())
+  projectId String
+  name       String
+  percentage String
+  selected   Boolean  @default(false)
+  
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  createdAt  DateTime @default(now())
+  
+  @@map("taxes")
+}
+
+model SalaryHistory {
+  id            String    @id @default(cuid())
+  collaboratorId String
+  date          String
+  previousValue String
+  newValue      String
+  reason        String?
+  
+  collaborator  Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime  @default(now())
+  
+  @@map("salary_history")
+}
+
+model ProjectHistory {
+  id            String    @id @default(cuid())
+  collaboratorId String
+  projectId     String
+  projectName   String
+  startDate     String
+  endDate       String?
+  hourlyRate    String
+  hoursWorked   Int?
+  
+  collaborator  Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime  @default(now())
+  
+  @@map("project_history")
+}
+
 
 
