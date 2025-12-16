@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Dialog,
   DialogContent,
@@ -7,6 +8,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Pencil } from 'lucide-react'
 import { getProjectById, type Project } from '@/utils/project-storage'
 import { getCollaborators } from '@/utils/storage'
 
@@ -25,6 +28,7 @@ const mockClients: Record<string, string> = {
 }
 
 function ProjectDetailsModal({ projectId, open, onOpenChange }: ProjectDetailsModalProps) {
+  const navigate = useNavigate()
   const [project, setProject] = useState<Project | null>(null)
   const [collaborators, setCollaborators] = useState<any[]>([])
 
@@ -42,6 +46,13 @@ function ProjectDetailsModal({ projectId, open, onOpenChange }: ProjectDetailsMo
       }
     }
   }, [projectId, open])
+
+  const handleEdit = () => {
+    if (projectId) {
+      onOpenChange(false)
+      navigate(`/projects/edit/${projectId}`)
+    }
+  }
 
   if (!project) return null
 
@@ -131,6 +142,16 @@ function ProjectDetailsModal({ projectId, open, onOpenChange }: ProjectDetailsMo
                 </span>
               </div>
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={handleEdit}
+              className="flex-shrink-0"
+              style={{ borderColor: '#28314d', color: '#28314d' }}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
