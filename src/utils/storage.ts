@@ -28,15 +28,13 @@ export interface Collaborator {
   status: 'busy' | 'available'
   
   // Informações de Projeto
-  hourlyRate?: string // Salário/hora
-  hoursPerMonth?: string // Número de horas por mês (para PJ)
+  hourlyRate?: string // Para PJ: valor mensal fixo
   monthlySalary?: string // Salário mensal (bruto para CLT)
   netSalary?: string // Salário líquido (para cálculo reverso CLT)
-  invoiceValue?: string // Valor da nota fiscal (para PJ)
+  invoiceValue?: string // Valor da nota fiscal (para PJ) - legado
   taxPercentage?: string // Porcentagem de impostos (legado)
   materialSubscriptions?: string | Array<{ id: string; description: string; value: string }> // Material e assinaturas (valor absoluto ou array de itens)
   totalCost?: string // Custo total
-  allocationRate?: string // Taxa de alocação (%)
   // Breakdown de impostos (opcional, para histórico)
   inssValue?: string // Valor do INSS calculado
   irrfValue?: string // Valor do IRRF calculado
@@ -55,6 +53,7 @@ export interface Collaborator {
   agency?: string
   account?: string
   pisPasep?: string
+  cnpj?: string
   
   // Endereço
   cep?: string
@@ -66,7 +65,10 @@ export interface Collaborator {
   state?: string
   
   // Informações de Saúde
-  allergies?: string
+  allergies?: string | string[]
+  diseases?: string[]
+  medications?: string[]
+  emergencyContacts?: Array<{ id: string; name: string; phone: string; relationship: string }>
   bloodType?: string
   healthInsurance?: string
   healthInsuranceNumber?: string

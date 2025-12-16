@@ -1,0 +1,45 @@
+Aba,Campo,Tipo,Obrigatório,Descrição,Exemplo,Validação,Observações
+Dados Pessoais,Nome Completo,Texto,Sim,Nome completo do colaborador,"João Silva Santos",Mínimo 3 caracteres,
+Dados Pessoais,Email Pessoal,Email,Não,Email pessoal do colaborador,joao.silva@gmail.com,Formato de email válido,
+Dados Pessoais,Email Profissional,Email,Sim,Email corporativo do colaborador,joao.silva@empresa.com,Formato de email válido,
+Dados Pessoais,Telefone(s),Texto,Sim,Um ou mais números de telefone,"(11) 99999-9999",Pelo menos um telefone obrigatório,Pode adicionar múltiplos
+Dados Pessoais,Cargo/Função,Texto,Sim,Cargo ou função do colaborador,Desenvolvedor Full Stack,
+Dados Pessoais,Status,Select,Sim,Status do colaborador,Disponível / Ocupado,
+Contrato,Data de Admissão,Data,Sim,Data de início do contrato,2024-01-15,
+Contrato,Data de Término,Data,Não,Data de término do contrato (se aplicável),2024-12-31,Deve ser posterior à data de admissão,
+Contrato,Tipo de Contrato,Select,Sim,Tipo de contratação,"CLT / PJ / Estágio / Freelancer / Outro",
+Contrato,Período de Experiência,Número,Não,Período de experiência em dias,90,
+Contrato - CLT,Salário Bruto,Moeda,Sim,Salário bruto mensal,"15.000,00",,Calculado automaticamente
+Contrato - CLT,Salário Líquido,Moeda,Não,Salário líquido (para cálculo reverso),"12.000,00",,Para cálculo reverso
+Contrato - CLT,INSS,Moeda,Calculado,Valor do INSS calculado,"1.200,00",,Calculado automaticamente
+Contrato - CLT,IRRF,Moeda,Calculado,Valor do IRRF calculado,"1.500,00",,Calculado automaticamente
+Contrato - CLT,FGTS,Moeda,Calculado,Valor do FGTS calculado,"1.200,00",,Calculado automaticamente
+Contrato - CLT,Custo Total,Moeda,Calculado,Custo total (bruto + FGTS + materiais),"17.200,00",,Calculado automaticamente
+Contrato - PJ,Valor Mensal,Moeda,Sim,Valor mensal fixo do contrato PJ,"20.000,00",
+Contrato - PJ,Custo Total,Moeda,Calculado,Custo total (valor mensal + materiais),"21.500,00",,Calculado automaticamente
+Contrato - Material,Descrição,Texto,Não,Descrição do material/assinatura,"Swile / Adobe Creative Cloud",,Campo Swile aparece por padrão
+Contrato - Material,Valor,Moeda,Não,Valor do material/assinatura,"500,00",,Pode adicionar múltiplos itens
+Financeiro,CPF,CPF,Sim,CPF do colaborador,123.456.789-00,Formato válido de CPF,
+Financeiro,RG,RG,Sim,RG do colaborador,12.345.678-9,
+Financeiro,Banco,Texto,Não,Nome do banco,Banco do Brasil,
+Financeiro,Agência,Texto,Não,Número da agência,1234-5,
+Financeiro,Conta,Texto,Não,Número da conta,12345-6,
+Financeiro,PIS/PASEP,Texto,Condicional,PIS/PASEP (apenas para CLT),000.00000.00-0,,Aparece apenas se tipo de contrato = CLT
+Financeiro,CNPJ,CNPJ,Condicional,CNPJ (apenas para PJ),12.345.678/0001-90,,Aparece apenas se tipo de contrato = PJ
+Endereço,CEP,CEP,Sim,Código postal,01310-100,Formato válido,Busca endereço automaticamente
+Endereço,Rua/Logradouro,Texto,Sim,Nome da rua,Avenida Paulista,
+Endereço,Número,Texto,Sim,Número do endereço,1000,
+Endereço,Complemento,Texto,Não,Complemento do endereço,Apto 101,
+Endereço,Bairro,Texto,Sim,Bairro,Bela Vista,
+Endereço,Cidade,Texto,Sim,Cidade,São Paulo,
+Endereço,Estado,Texto,Sim,Estado (UF),SP,Máximo 2 caracteres,
+Saúde,Alergias,Texto (Lista),Não,Lista de alergias conhecidas,"Amendoim, Lactose",,Pode adicionar múltiplas - sempre há um campo vazio
+Saúde,Doenças,Texto (Lista),Não,Lista de doenças,"Diabetes, Hipertensão",,Pode adicionar múltiplas - sempre há um campo vazio
+Saúde,Remédios que Usa,Texto (Lista),Não,Lista de remédios em uso,"Metformina, Losartana",,Pode adicionar múltiplos - sempre há um campo vazio
+Saúde - Contato,Nome,Texto,Não,Nome do contato de emergência,Maria Silva,,Pode adicionar múltiplos contatos
+Saúde - Contato,Telefone,Telefone,Não,Telefone do contato de emergência,"(11) 98888-8888",,Pode adicionar múltiplos contatos
+Saúde - Contato,Relação,Texto,Não,Relação com o colaborador,"Mãe, Pai, Cônjuge",,Pode adicionar múltiplos contatos
+Saúde,Tipo Sanguíneo,Select,Não,Tipo sanguíneo,"A+ / A- / B+ / B- / AB+ / AB- / O+ / O- / Não informado",
+Saúde,Plano de Saúde,Texto,Não,Nome do plano de saúde,Unimed,
+Saúde,Número do Plano de Saúde,Texto,Não,Número da carteirinha,123456789,
+

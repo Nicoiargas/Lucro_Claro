@@ -60,18 +60,64 @@ function ProjectList({ projects }: ProjectListProps) {
             role: collaborator.role
           })
           
-          // Estima custo baseado em horas trabalhadas do histórico ou usa um valor padrão
+          // Calcula o custo do colaborador no projeto
+          let collaboratorCost = 0
+          
+          // Se houver custo customizado para este projeto, usa ele
           const customCost = fullProject.collaboratorCosts?.[collabId]
-          const hourlyRate = parseFloat((customCost || collaborator.hourlyRate || '0').replace(/\./g, '').replace(',', '.')) || 0
+          if (customCost) {
+            // Custo customizado pode ser por hora ou mensal, vamos assumir mensal
+            const customValue = parseFloat(customCost.replace(/\./g, '').replace(',', '.')) || 0
+            const startDate = new Date(fullProject.startDate)
+            const endDate = new Date(fullProject.endDate)
+            const months = Math.max(1, (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30))
+            collaboratorCost = customValue * months
+          } else if (collaborator.totalCost) {
+            // Usa o custo total do colaborador (já inclui salário + FGTS + materiais)
+            const totalCostValue = parseFloat(collaborator.totalCost.replace(/\./g, '').replace(',', '.')) || 0
+            const startDate = new Date(fullProject.startDate)
+            const endDate = new Date(fullProject.endDate)
+            const months = Math.max(1, (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30))
+            collaboratorCost = totalCostValue * months
+          } else {
+            // Fallback: calcula baseado no tipo de contrato
+            const contractType = collaborator.contractType
+            const startDate = new Date(fullProject.startDate)
+            const endDate = new Date(fullProject.endDate)
+            const months = Math.max(1, (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30))
+            
+            if (contractType === 'PJ' && collaborator.hourlyRate) {
+              // Para PJ: hourlyRate é o valor mensal fixo
+              const monthlyValue = parseFloat(collaborator.hourlyRate.replace(/\./g, '').replace(',', '.')) || 0
+              collaboratorCost = monthlyValue * months
+            } else if (contractType === 'CLT') {
+              // Para CLT: usa salário bruto + FGTS + materiais
+              const monthlySalary = parseFloat((collaborator.monthlySalary || '0').replace(/\./g, '').replace(',', '.')) || 0
+              const fgtsValue = parseFloat((collaborator.fgtsValue || '0').replace(/\./g, '').replace(',', '.')) || 0
+              
+              // Calcula materiais
+              let materialTotal = 0
+              if (collaborator.materialSubscriptions) {
+                if (Array.isArray(collaborator.materialSubscriptions)) {
+                  materialTotal = collaborator.materialSubscriptions.reduce((sum, item) => {
+                    const value = parseFloat((item.value || '0').replace(/\./g, '').replace(',', '.')) || 0
+                    return sum + value
+                  }, 0)
+                } else {
+                  materialTotal = parseFloat((collaborator.materialSubscriptions || '0').replace(/\./g, '').replace(',', '.')) || 0
+                }
+              }
+              
+              const monthlyTotal = monthlySalary + fgtsValue + materialTotal
+              collaboratorCost = monthlyTotal * months
+            } else {
+              // Fallback genérico: tenta usar hourlyRate como mensal
+              const hourlyRate = parseFloat((collaborator.hourlyRate || '0').replace(/\./g, '').replace(',', '.')) || 0
+              collaboratorCost = hourlyRate * months
+            }
+          }
           
-          // Estima 160 horas por mês (8h/dia * 20 dias) para projetos ativos
-          // Para projetos finalizados, poderia usar horas trabalhadas do histórico
-          const startDate = new Date(fullProject.startDate)
-          const endDate = new Date(fullProject.endDate)
-          const months = Math.max(1, (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30))
-          const estimatedHours = months * 160
-          
-          collaboratorCosts += hourlyRate * estimatedHours
+          collaboratorCosts += collaboratorCost
         }
       })
 

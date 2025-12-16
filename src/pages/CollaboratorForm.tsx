@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PhoneInput } from '@/components/ui/phone-input'
 import { CPFInput } from '@/components/ui/cpf-input'
+import { CNPJInput } from '@/components/ui/cnpj-input'
 import { RGInput } from '@/components/ui/rg-input'
 import { CEPInput } from '@/components/ui/cep-input'
 import { CurrencyInput } from '@/components/ui/currency-input'
@@ -49,15 +50,13 @@ function CollaboratorForm() {
     status: 'available' as 'busy' | 'available',
     
     // Informações de Projeto
-    hourlyRate: '',
-    hoursPerMonth: '',
+    hourlyRate: '', // Para PJ: valor mensal fixo
     monthlySalary: '',
     netSalary: '',
     invoiceValue: '',
     taxPercentage: '',
-    materialSubscriptions: [] as Array<{ id: string; description: string; value: string }>,
+    materialSubscriptions: [{ id: 'swile-default', description: 'Swile', value: '' }] as Array<{ id: string; description: string; value: string }>,
     totalCost: '',
-    allocationRate: '',
     // Breakdown de impostos
     inssValue: '',
     irrfValue: '',
@@ -76,6 +75,7 @@ function CollaboratorForm() {
     agency: '',
     account: '',
     pisPasep: '',
+    cnpj: '',
     
     // Endereço
     cep: '',
@@ -87,7 +87,10 @@ function CollaboratorForm() {
     state: '',
     
     // Informações de Saúde
-    allergies: '',
+    allergies: [''] as string[],
+    diseases: [''] as string[],
+    medications: [''] as string[],
+    emergencyContacts: [{ id: `default-${Date.now()}`, name: '', phone: '', relationship: '' }] as Array<{ id: string; name: string; phone: string; relationship: string }>,
     bloodType: '' as '' | 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-' | 'Não informado',
     healthInsurance: '',
     healthInsuranceNumber: '',
@@ -98,8 +101,129 @@ function CollaboratorForm() {
   const [deleteConfirmed, setDeleteConfirmed] = useState(false)
   const [activeProjects, setActiveProjects] = useState<string[]>([])
   const [canDelete, setCanDelete] = useState(true)
+  const [activeTab, setActiveTab] = useState('personal')
   
   // Determina o tipo de contratação baseado no contractType
+  // Funções para gerenciar alergias
+  const addAllergy = () => {
+    setFormData(prev => ({
+      ...prev,
+      allergies: [...prev.allergies, '']
+    }))
+  }
+
+  const removeAllergy = (index: number) => {
+    setFormData(prev => {
+      // Garante que sempre haja pelo menos um campo
+      if (prev.allergies.length <= 1) {
+        return prev
+      }
+      return {
+        ...prev,
+        allergies: prev.allergies.filter((_, i) => i !== index)
+      }
+    })
+  }
+
+  const updateAllergy = (index: number, value: string) => {
+    setFormData(prev => {
+      const newAllergies = [...prev.allergies]
+      newAllergies[index] = value
+      return { ...prev, allergies: newAllergies }
+    })
+  }
+
+  // Funções para gerenciar doenças
+  const addDisease = () => {
+    setFormData(prev => ({
+      ...prev,
+      diseases: [...prev.diseases, '']
+    }))
+  }
+
+  const removeDisease = (index: number) => {
+    setFormData(prev => {
+      // Garante que sempre haja pelo menos um campo
+      if (prev.diseases.length <= 1) {
+        return prev
+      }
+      return {
+        ...prev,
+        diseases: prev.diseases.filter((_, i) => i !== index)
+      }
+    })
+  }
+
+  const updateDisease = (index: number, value: string) => {
+    setFormData(prev => {
+      const newDiseases = [...prev.diseases]
+      newDiseases[index] = value
+      return { ...prev, diseases: newDiseases }
+    })
+  }
+
+  // Funções para gerenciar remédios
+  const addMedication = () => {
+    setFormData(prev => ({
+      ...prev,
+      medications: [...prev.medications, '']
+    }))
+  }
+
+  const removeMedication = (index: number) => {
+    setFormData(prev => {
+      // Garante que sempre haja pelo menos um campo
+      if (prev.medications.length <= 1) {
+        return prev
+      }
+      return {
+        ...prev,
+        medications: prev.medications.filter((_, i) => i !== index)
+      }
+    })
+  }
+
+  const updateMedication = (index: number, value: string) => {
+    setFormData(prev => {
+      const newMedications = [...prev.medications]
+      newMedications[index] = value
+      return { ...prev, medications: newMedications }
+    })
+  }
+
+  // Funções para gerenciar contatos de emergência
+  const addEmergencyContact = () => {
+    setFormData(prev => ({
+      ...prev,
+      emergencyContacts: [
+        ...prev.emergencyContacts,
+        { id: Date.now().toString(), name: '', phone: '', relationship: '' }
+      ]
+    }))
+  }
+
+  const removeEmergencyContact = (id: string) => {
+    setFormData(prev => {
+      // Garante que sempre haja pelo menos um campo
+      if (prev.emergencyContacts.length <= 1) {
+        return prev
+      }
+      return {
+        ...prev,
+        emergencyContacts: prev.emergencyContacts.filter(item => item.id !== id)
+      }
+    })
+  }
+
+  const updateEmergencyContact = (id: string, field: 'name' | 'phone' | 'relationship', value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      emergencyContacts: prev.emergencyContacts.map(item =>
+        item.id === id ? { ...item, [field]: value } : item
+      )
+    }))
+  }
+
   const getHonorariosContractType = (): 'PJ' | 'CLT' => {
     if (formData.contractType === 'PJ') return 'PJ'
     if (formData.contractType === 'CLT') return 'CLT'
@@ -206,6 +330,10 @@ function CollaboratorForm() {
   }
 
   const removeMaterialSubscription = (id: string) => {
+    // Garante que sempre haja pelo menos um campo
+    if (formData.materialSubscriptions.length <= 1) {
+      return
+    }
     setFormData(prev => {
       const updated = {
         ...prev,
@@ -225,18 +353,9 @@ function CollaboratorForm() {
         const total = bruto + fgts + materialTotal
         updated.totalCost = formatCurrency(total)
       } else if (contractType === 'PJ') {
-        // Calcula baseado em valor/hora × horas/mês OU nota fiscal
-        let baseValue = 0
-        const hourlyRate = parseCurrency(updated.hourlyRate)
-        const hoursPerMonth = parseFloat(updated.hoursPerMonth) || 0
-        
-        if (hourlyRate > 0 && hoursPerMonth > 0) {
-          baseValue = hourlyRate * hoursPerMonth
-        } else if (updated.invoiceValue) {
-          baseValue = parseCurrency(updated.invoiceValue)
-        }
-        
-        const total = baseValue + materialTotal
+        // Calcula baseado em valor mensal fixo
+        const monthlyValue = parseCurrency(updated.hourlyRate)
+        const total = monthlyValue + materialTotal
         updated.totalCost = formatCurrency(total)
       }
       
@@ -267,18 +386,9 @@ function CollaboratorForm() {
           const total = bruto + fgts + materialTotal
           updated.totalCost = formatCurrency(total)
         } else if (contractType === 'PJ') {
-          // Calcula baseado em valor/hora × horas/mês OU nota fiscal
-          let baseValue = 0
-          const hourlyRate = parseCurrency(updated.hourlyRate)
-          const hoursPerMonth = parseFloat(updated.hoursPerMonth) || 0
-          
-          if (hourlyRate > 0 && hoursPerMonth > 0) {
-            baseValue = hourlyRate * hoursPerMonth
-          } else if (updated.invoiceValue) {
-            baseValue = parseCurrency(updated.invoiceValue)
-          }
-          
-          const total = baseValue + materialTotal
+          // Calcula baseado em valor mensal fixo
+          const monthlyValue = parseCurrency(updated.hourlyRate)
+          const total = monthlyValue + materialTotal
           updated.totalCost = formatCurrency(total)
         }
       }
@@ -318,18 +428,24 @@ function CollaboratorForm() {
           role: collaborator.role || '',
           status: collaborator.status || 'available',
           hourlyRate: collaborator.hourlyRate || '',
-          hoursPerMonth: collaborator.hoursPerMonth || '',
           monthlySalary: collaborator.monthlySalary || '',
           netSalary: collaborator.netSalary || '',
           invoiceValue: collaborator.invoiceValue || '',
           taxPercentage: collaborator.taxPercentage || '',
-          materialSubscriptions: Array.isArray(collaborator.materialSubscriptions)
-            ? collaborator.materialSubscriptions
-            : collaborator.materialSubscriptions
-              ? [{ id: Date.now().toString(), description: 'Material e Assinaturas', value: collaborator.materialSubscriptions }]
-              : [],
+          materialSubscriptions: (() => {
+            const existing = Array.isArray(collaborator.materialSubscriptions)
+              ? collaborator.materialSubscriptions
+              : collaborator.materialSubscriptions
+                ? [{ id: Date.now().toString(), description: 'Material e Assinaturas', value: collaborator.materialSubscriptions }]
+                : []
+            // Garante que sempre tenha o campo Swile
+            const hasSwile = existing.some(item => item.description === 'Swile')
+            if (!hasSwile) {
+              return [{ id: 'swile-default', description: 'Swile', value: '' }, ...existing]
+            }
+            return existing
+          })(),
           totalCost: collaborator.totalCost || '',
-          allocationRate: collaborator.allocationRate || '',
           inssValue: collaborator.inssValue || '',
           irrfValue: collaborator.irrfValue || '',
           fgtsValue: collaborator.fgtsValue || '',
@@ -343,6 +459,7 @@ function CollaboratorForm() {
           agency: collaborator.agency || '',
           account: collaborator.account || '',
           pisPasep: collaborator.pisPasep || '',
+          cnpj: collaborator.cnpj || '',
           cep: collaborator.cep || '',
           street: collaborator.street || '',
           number: collaborator.number || '',
@@ -350,7 +467,36 @@ function CollaboratorForm() {
           neighborhood: collaborator.neighborhood || '',
           city: collaborator.city || '',
           state: collaborator.state || '',
-          allergies: collaborator.allergies || '',
+          allergies: (() => {
+            const existing = Array.isArray(collaborator.allergies) 
+              ? collaborator.allergies 
+              : collaborator.allergies 
+                ? [collaborator.allergies] 
+                : []
+            // Garante que sempre haja pelo menos um campo vazio
+            return existing.length > 0 ? existing : ['']
+          })(),
+          diseases: (() => {
+            const existing = Array.isArray(collaborator.diseases) 
+              ? collaborator.diseases 
+              : []
+            // Garante que sempre haja pelo menos um campo vazio
+            return existing.length > 0 ? existing : ['']
+          })(),
+          medications: (() => {
+            const existing = Array.isArray(collaborator.medications) 
+              ? collaborator.medications 
+              : []
+            // Garante que sempre haja pelo menos um campo vazio
+            return existing.length > 0 ? existing : ['']
+          })(),
+          emergencyContacts: (() => {
+            const existing = Array.isArray(collaborator.emergencyContacts) 
+              ? collaborator.emergencyContacts 
+              : []
+            // Garante que sempre haja pelo menos um campo vazio
+            return existing.length > 0 ? existing : [{ id: `default-${Date.now()}`, name: '', phone: '', relationship: '' }]
+          })(),
           bloodType: collaborator.bloodType || '',
           healthInsurance: collaborator.healthInsurance || '',
           healthInsuranceNumber: collaborator.healthInsuranceNumber || '',
@@ -410,20 +556,9 @@ function CollaboratorForm() {
         })
       }
     } else if (contractType === 'PJ') {
-      // Calcula baseado em valor/hora × horas/mês OU nota fiscal
-      let baseValue = 0
-      const hourlyRate = parseCurrency(formData.hourlyRate)
-      const hoursPerMonth = parseFloat(formData.hoursPerMonth) || 0
-      
-      if (hourlyRate > 0 && hoursPerMonth > 0) {
-        // Usa valor/hora × horas/mês
-        baseValue = hourlyRate * hoursPerMonth
-      } else if (formData.invoiceValue) {
-        // Usa nota fiscal
-        baseValue = parseCurrency(formData.invoiceValue)
-      }
-      
-      const newTotal = formatCurrency(baseValue + materialTotal)
+      // Calcula baseado em valor mensal fixo
+      const monthlyValue = parseCurrency(formData.hourlyRate)
+      const newTotal = formatCurrency(monthlyValue + materialTotal)
       
       setFormData(prev => {
         if (prev.totalCost !== newTotal) {
@@ -433,7 +568,7 @@ function CollaboratorForm() {
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData.contractType, formData.materialSubscriptions, formData.hourlyRate, formData.hoursPerMonth, formData.invoiceValue])
+  }, [formData.contractType, formData.materialSubscriptions, formData.hourlyRate])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => {
@@ -450,7 +585,7 @@ function CollaboratorForm() {
           updated.irrfValue = ''
           updated.fgtsValue = ''
         } else if (value === 'CLT') {
-          updated.invoiceValue = ''
+          updated.hourlyRate = ''
         }
       }
       
@@ -479,27 +614,16 @@ function CollaboratorForm() {
         }
       }
       
-      // Cálculo para PJ: quando valor/hora, horas/mês ou nota fiscal mudam
-      if (honorariosType === 'PJ' && (field === 'hourlyRate' || field === 'hoursPerMonth' || field === 'invoiceValue')) {
+      // Cálculo para PJ: quando valor mensal muda
+      if (honorariosType === 'PJ' && field === 'hourlyRate') {
         const materialTotal = updated.materialSubscriptions.reduce(
           (sum, item) => sum + parseCurrency(item.value),
           0
         )
         
-        // Calcula baseado em valor/hora × horas/mês OU nota fiscal
-        let baseValue = 0
-        const hourlyRate = parseCurrency(updated.hourlyRate)
-        const hoursPerMonth = parseFloat(updated.hoursPerMonth) || 0
-        
-        if (hourlyRate > 0 && hoursPerMonth > 0) {
-          // Usa valor/hora × horas/mês (prioridade)
-          baseValue = hourlyRate * hoursPerMonth
-        } else if (updated.invoiceValue) {
-          // Usa nota fiscal
-          baseValue = parseCurrency(updated.invoiceValue)
-        }
-        
-        const total = baseValue + materialTotal
+        // Calcula baseado em valor mensal fixo
+        const monthlyValue = parseCurrency(value)
+        const total = monthlyValue + materialTotal
         updated.totalCost = formatCurrency(total)
       }
       
@@ -614,27 +738,16 @@ function CollaboratorForm() {
         newErrors.monthlySalary = 'Salário bruto não pôde ser calculado'
       }
     } else {
-      // PJ - deve ter OU (valor/hora + horas/mês) OU nota fiscal
-      const hourlyRate = parseCurrency(formData.hourlyRate)
-      const hoursPerMonth = parseFloat(formData.hoursPerMonth) || 0
-      const invoice = parseCurrency(formData.invoiceValue)
+      // PJ - deve ter valor mensal
+      const monthlyValue = parseCurrency(formData.hourlyRate)
       
-      const hasHourlyCalculation = hourlyRate > 0 && hoursPerMonth > 0
-      const hasInvoice = invoice > 0
-      
-      if (!hasHourlyCalculation && !hasInvoice) {
-        newErrors.invoiceValue = 'Preencha Valor/Hora + Horas/Mês OU Valor da Nota Fiscal para PJ'
-      } else if (hasHourlyCalculation && hasInvoice) {
-        // Se ambos estão preenchidos, prioriza valor/hora × horas
-        // Não precisa de erro, mas pode avisar
+      if (!formData.hourlyRate || monthlyValue <= 0) {
+        newErrors.hourlyRate = 'Valor Mensal é obrigatório para PJ'
       }
     }
     
     if (!formData.totalCost) {
       newErrors.totalCost = 'Custo total é obrigatório'
-    }
-    if (!formData.allocationRate) {
-      newErrors.allocationRate = 'Taxa de alocação é obrigatória'
     }
     
     // Informações de Contrato
@@ -673,6 +786,16 @@ function CollaboratorForm() {
     return Object.keys(newErrors).length === 0
   }
 
+  const handleAdvance = () => {
+    const tabs = isEdit 
+      ? ['personal', 'contract', 'financial', 'address', 'health', 'history']
+      : ['personal', 'contract', 'financial', 'address', 'health']
+    const currentIndex = tabs.indexOf(activeTab)
+    if (currentIndex < tabs.length - 1) {
+      setActiveTab(tabs[currentIndex + 1])
+    }
+  }
+
   const handleSave = () => {
     if (!validateForm()) {
       alert('Por favor, corrija os erros no formulário')
@@ -690,7 +813,6 @@ function CollaboratorForm() {
       role: formData.role,
       status: formData.status,
       hourlyRate: formData.hourlyRate || undefined,
-      hoursPerMonth: formData.hoursPerMonth || undefined,
       monthlySalary: formData.monthlySalary || undefined,
       netSalary: formData.netSalary || undefined,
       invoiceValue: formData.invoiceValue || undefined,
@@ -700,7 +822,6 @@ function CollaboratorForm() {
       inssValue: formData.inssValue || undefined,
       irrfValue: formData.irrfValue || undefined,
       fgtsValue: formData.fgtsValue || undefined,
-      allocationRate: formData.allocationRate,
       admissionDate: formData.admissionDate,
       terminationDate: formData.terminationDate || undefined,
       contractType: formData.contractType || undefined,
@@ -711,6 +832,7 @@ function CollaboratorForm() {
       agency: formData.agency || undefined,
       account: formData.account || undefined,
       pisPasep: formData.pisPasep || undefined,
+      cnpj: formData.cnpj || undefined,
       cep: formData.cep,
       street: formData.street,
       number: formData.number,
@@ -718,7 +840,18 @@ function CollaboratorForm() {
       neighborhood: formData.neighborhood,
       city: formData.city,
       state: formData.state,
-      allergies: formData.allergies || undefined,
+      allergies: formData.allergies.filter(a => a.trim() !== '').length > 0 
+        ? formData.allergies.filter(a => a.trim() !== '') 
+        : undefined,
+      diseases: formData.diseases.filter(d => d.trim() !== '').length > 0 
+        ? formData.diseases.filter(d => d.trim() !== '') 
+        : undefined,
+      medications: formData.medications.filter(m => m.trim() !== '').length > 0 
+        ? formData.medications.filter(m => m.trim() !== '') 
+        : undefined,
+      emergencyContacts: formData.emergencyContacts.filter(c => c.name.trim() !== '' || c.phone.trim() !== '' || c.relationship.trim() !== '').length > 0 
+        ? formData.emergencyContacts.filter(c => c.name.trim() !== '' || c.phone.trim() !== '' || c.relationship.trim() !== '') 
+        : undefined,
       bloodType: formData.bloodType || undefined,
       healthInsurance: formData.healthInsurance || undefined,
       healthInsuranceNumber: formData.healthInsuranceNumber || undefined,
@@ -802,7 +935,7 @@ function CollaboratorForm() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="personal" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className={`!grid !w-full gap-1 ${isEdit ? 'grid-cols-6' : 'grid-cols-5'} !h-auto p-1`}>
                 <TabsTrigger value="personal" className="text-xs px-2 py-2 whitespace-normal text-center leading-tight min-h-[2.5rem] w-full flex items-center justify-center">Dados Pessoais</TabsTrigger>
                 <TabsTrigger value="contract" className="text-xs px-2 py-2 whitespace-normal text-center leading-tight min-h-[2.5rem] w-full flex items-center justify-center">Contrato</TabsTrigger>
@@ -1110,7 +1243,8 @@ function CollaboratorForm() {
                                   variant="outline"
                                   size="icon"
                                   onClick={() => removeMaterialSubscription(item.id)}
-                                  className="h-10 w-10 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive"
+                                  disabled={formData.materialSubscriptions.length <= 1}
+                                  className="h-10 w-10 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -1141,56 +1275,19 @@ function CollaboratorForm() {
                   ) : (
                     <div className="space-y-4">
                       <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="hourlyRate" style={{ color: '#28314d' }}>
-                              Valor/Hora
-                            </Label>
-                            <div className="flex gap-2 items-end">
-                              <div className="flex-[2]">
-                                <CurrencyInput
-                                  id="hourlyRate"
-                                  value={formData.hourlyRate}
-                                  onChange={(value) => handleInputChange('hourlyRate', value)}
-                                  className={`border-primary/20 focus:border-primary ${errors.hourlyRate ? 'border-destructive' : ''}`}
-                                  placeholder="Ex: 150,00"
-                                />
-                              </div>
-                              <div className="flex-[1]">
-                                <Label htmlFor="hoursPerMonth" className="text-xs text-muted-foreground mb-1 block">
-                                  Horas/Mês
-                                </Label>
-                                <Input
-                                  id="hoursPerMonth"
-                                  type="number"
-                                  value={formData.hoursPerMonth}
-                                  onChange={(e) => handleInputChange('hoursPerMonth', e.target.value)}
-                                  className="border-primary/20 focus:border-primary h-10"
-                                  placeholder="Ex: 160"
-                                  min="0"
-                                />
-                              </div>
-                            </div>
-                            {errors.hourlyRate && <p className="text-sm text-destructive">{errors.hourlyRate}</p>}
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="invoiceValue" style={{ color: '#28314d' }}>
-                              Valor da Nota Fiscal Mensal *
-                            </Label>
-                            <CurrencyInput
-                              id="invoiceValue"
-                              value={formData.invoiceValue}
-                              onChange={(value) => handleInputChange('invoiceValue', value)}
-                              className={`border-primary/20 focus:border-primary ${errors.invoiceValue ? 'border-destructive' : ''}`}
-                              placeholder="Valor da nota fiscal"
-                            />
-                            {errors.invoiceValue && <p className="text-sm text-destructive">{errors.invoiceValue}</p>}
-                          </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="hourlyRate" style={{ color: '#28314d' }}>
+                            Valor Mensal *
+                          </Label>
+                          <CurrencyInput
+                            id="hourlyRate"
+                            value={formData.hourlyRate}
+                            onChange={(value) => handleInputChange('hourlyRate', value)}
+                            className={`border-primary/20 focus:border-primary ${errors.hourlyRate ? 'border-destructive' : ''}`}
+                            placeholder="Ex: 15.000,00"
+                          />
+                          {errors.hourlyRate && <p className="text-sm text-destructive">{errors.hourlyRate}</p>}
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          Preencha <strong>Valor/Hora + Horas/Mês</strong> OU <strong>Valor da Nota Fiscal</strong>. O sistema calculará automaticamente o custo total.
-                        </p>
                       </div>
 
                       <div className="space-y-4">
@@ -1232,7 +1329,8 @@ function CollaboratorForm() {
                                   variant="outline"
                                   size="icon"
                                   onClick={() => removeMaterialSubscription(item.id)}
-                                  className="h-10 w-10 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive"
+                                  disabled={formData.materialSubscriptions.length <= 1}
+                                  className="h-10 w-10 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -1263,18 +1361,6 @@ function CollaboratorForm() {
                   )}
 
                   <div className="mt-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="allocationRate" style={{ color: '#28314d' }}>
-                        Taxa de Alocação *
-                      </Label>
-                      <PercentageInput
-                        id="allocationRate"
-                        value={formData.allocationRate}
-                        onChange={(value) => handleInputChange('allocationRate', value)}
-                        className={`border-primary/20 focus:border-primary ${errors.allocationRate ? 'border-destructive' : ''}`}
-                      />
-                      {errors.allocationRate && <p className="text-sm text-destructive">{errors.allocationRate}</p>}
-                    </div>
                   </div>
                 </div>
               </TabsContent>
@@ -1347,18 +1433,34 @@ function CollaboratorForm() {
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="pisPasep" style={{ color: '#28314d' }}>
-                      PIS/PASEP
-                    </Label>
-                    <Input
-                      id="pisPasep"
-                      value={formData.pisPasep}
-                      onChange={(e) => handleInputChange('pisPasep', e.target.value)}
-                      placeholder="000.00000.00-0"
-                      className="border-primary/20 focus:border-primary"
-                    />
-                  </div>
+                  {formData.contractType === 'CLT' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="pisPasep" style={{ color: '#28314d' }}>
+                        PIS/PASEP
+                      </Label>
+                      <Input
+                        id="pisPasep"
+                        value={formData.pisPasep}
+                        onChange={(e) => handleInputChange('pisPasep', e.target.value)}
+                        placeholder="000.00000.00-0"
+                        className="border-primary/20 focus:border-primary"
+                      />
+                    </div>
+                  )}
+
+                  {formData.contractType === 'PJ' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="cnpj" style={{ color: '#28314d' }}>
+                        CNPJ
+                      </Label>
+                      <CNPJInput
+                        id="cnpj"
+                        value={formData.cnpj}
+                        onChange={(value) => handleInputChange('cnpj', value)}
+                        className="border-primary/20 focus:border-primary"
+                      />
+                    </div>
+                  )}
                 </div>
               </TabsContent>
 
@@ -1467,20 +1569,190 @@ function CollaboratorForm() {
 
               {/* Aba 5: Informações de Saúde */}
               <TabsContent value="health" className="space-y-4 mt-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="allergies" style={{ color: '#28314d' }}>
+                <div className="space-y-6">
+                  {/* Alergias */}
+                  <div className="space-y-2">
+                    <Label style={{ color: '#28314d' }}>
                       Alergias
                     </Label>
-                    <Input
-                      id="allergies"
-                      value={formData.allergies}
-                      onChange={(e) => handleInputChange('allergies', e.target.value)}
-                      placeholder="Liste as alergias conhecidas"
-                      className="border-primary/20 focus:border-primary"
-                    />
+                    <div className="space-y-2">
+                      {formData.allergies.map((allergy, index) => (
+                        <div key={index} className="flex gap-2 items-center">
+                          <Input
+                            value={allergy}
+                            onChange={(e) => updateAllergy(index, e.target.value)}
+                            placeholder="Nome da alergia"
+                            className="border-primary/20 focus:border-primary flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={addAllergy}
+                            className="h-10 w-10"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => removeAllergy(index)}
+                            disabled={formData.allergies.length <= 1}
+                            className="h-10 w-10 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
+                  {/* Doenças */}
+                  <div className="space-y-2">
+                    <Label style={{ color: '#28314d' }}>
+                      Doenças
+                    </Label>
+                    <div className="space-y-2">
+                      {formData.diseases.map((disease, index) => (
+                        <div key={index} className="flex gap-2 items-center">
+                          <Input
+                            value={disease}
+                            onChange={(e) => updateDisease(index, e.target.value)}
+                            placeholder="Nome da doença"
+                            className="border-primary/20 focus:border-primary flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={addDisease}
+                            className="h-10 w-10"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => removeDisease(index)}
+                            disabled={formData.diseases.length <= 1}
+                            className="h-10 w-10 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Remédios */}
+                  <div className="space-y-2">
+                    <Label style={{ color: '#28314d' }}>
+                      Remédios que Usa
+                    </Label>
+                    <div className="space-y-2">
+                      {formData.medications.map((medication, index) => (
+                        <div key={index} className="flex gap-2 items-center">
+                          <Input
+                            value={medication}
+                            onChange={(e) => updateMedication(index, e.target.value)}
+                            placeholder="Nome do remédio"
+                            className="border-primary/20 focus:border-primary flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={addMedication}
+                            className="h-10 w-10"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => removeMedication(index)}
+                            disabled={formData.medications.length <= 1}
+                            className="h-10 w-10 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Contatos de Emergência */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label style={{ color: '#28314d' }}>
+                        Contatos de Emergência
+                      </Label>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={addEmergencyContact}
+                          className="h-10 w-10"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => {
+                            const lastContact = formData.emergencyContacts[formData.emergencyContacts.length - 1]
+                            if (lastContact) {
+                              removeEmergencyContact(lastContact.id)
+                            }
+                          }}
+                          disabled={formData.emergencyContacts.length <= 1}
+                          className="h-10 w-10 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {formData.emergencyContacts.map((contact) => (
+                        <div key={contact.id} className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Nome</Label>
+                            <Input
+                              value={contact.name}
+                              onChange={(e) => updateEmergencyContact(contact.id, 'name', e.target.value)}
+                              placeholder="Nome completo"
+                              className="border-primary/20 focus:border-primary h-10"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Telefone</Label>
+                            <PhoneInput
+                              value={contact.phone}
+                              onChange={(value) => updateEmergencyContact(contact.id, 'phone', value)}
+                              className="border-primary/20 focus:border-primary h-10"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Relação</Label>
+                            <Input
+                              value={contact.relationship}
+                              onChange={(e) => updateEmergencyContact(contact.id, 'relationship', e.target.value)}
+                              placeholder="Ex: Pai, Mãe, Cônjuge"
+                              className="border-primary/20 focus:border-primary h-10"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Campos existentes */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="bloodType" style={{ color: '#28314d' }}>
                       Tipo Sanguíneo
@@ -1530,6 +1802,7 @@ function CollaboratorForm() {
                       placeholder="Número da carteirinha"
                       className="border-primary/20 focus:border-primary"
                     />
+                  </div>
                   </div>
                 </div>
               </TabsContent>
@@ -1672,12 +1945,12 @@ function CollaboratorForm() {
               )}
               {!isEdit && <div />}
               <Button
-                onClick={handleSave}
+                onClick={activeTab === 'health' ? handleSave : handleAdvance}
                 className="flex items-center gap-2"
                 style={{ backgroundColor: '#28314d', borderColor: '#28314d' }}
               >
                 <Save className="h-4 w-4" />
-                Salvar
+                {activeTab === 'health' ? 'Salvar' : 'Avançar'}
               </Button>
             </div>
           </CardContent>
