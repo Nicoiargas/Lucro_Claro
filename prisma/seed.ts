@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
@@ -15,6 +16,22 @@ async function main() {
   await prisma.project.deleteMany()
   await prisma.collaborator.deleteMany()
   await prisma.client.deleteMany()
+  await prisma.user.deleteMany()
+
+  // Criar usuário padrão
+  console.log('👤 Criando usuário padrão...')
+  const hashedPassword = await bcrypt.hash('admin123', 10)
+  const defaultUser = await prisma.user.create({
+    data: {
+      name: 'Administrador',
+      email: 'admin@lucroclaro.com.br',
+      password: hashedPassword,
+      role: 'admin',
+      phone: '(11) 99999-9999',
+      company: 'Lucro Claro',
+    },
+  })
+  console.log(`   ✅ Usuário criado: ${defaultUser.email} (senha: admin123)\n`)
 
   // Criar Clientes
   console.log('👥 Criando clientes...')

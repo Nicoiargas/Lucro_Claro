@@ -77,6 +77,10 @@ function Breadcrumbs() {
       }
     }
 
+    if (paths[0] === 'account') {
+      breadcrumbs.push({ label: 'Minha Conta' })
+    }
+
     return breadcrumbs
   }
 

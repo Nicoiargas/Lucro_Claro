@@ -14,6 +14,7 @@ import { PercentageInput } from '@/components/ui/percentage-input'
 import { DateInput } from '@/components/ui/date-input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Breadcrumbs from '@/components/Breadcrumbs'
+import UserMenu from '@/components/UserMenu'
 import {
   Dialog,
   DialogContent,
@@ -907,12 +908,19 @@ function CollaboratorForm() {
   return (
     <div className="min-h-screen bg-muted/50">
       <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-center mb-8">
-          <img 
-            src="/logo2.svg" 
-            alt="Lucro Claro" 
-            style={{ height: '50px', width: 'auto' }}
-          />
+        {/* Header com Logo e Menu do Usuário */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex-1"></div>
+          <div className="flex-1 flex justify-center">
+            <img 
+              src="/logo2.svg" 
+              alt="Lucro Claro" 
+              style={{ height: '50px', width: 'auto' }}
+            />
+          </div>
+          <div className="flex-1 flex justify-end">
+            <UserMenu />
+          </div>
         </div>
 
         {/* Breadcrumbs */}
