@@ -68,7 +68,13 @@ function Dashboard() {
         status: c.status,
         currentProject: c.currentProject
       }))
-      setProfessionals(formatted)
+      // Ordena para que profissionais disponíveis apareçam primeiro
+      const sorted = formatted.sort((a, b) => {
+        if (a.status === 'available' && b.status === 'busy') return -1
+        if (a.status === 'busy' && b.status === 'available') return 1
+        return 0
+      })
+      setProfessionals(sorted)
     }
     
     loadProjects()
