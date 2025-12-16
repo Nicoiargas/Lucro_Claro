@@ -5,6 +5,7 @@ import ProjectList from '../components/ProjectList'
 import EvolutionChart from '../components/EvolutionChart'
 import TeamStatus from '../components/TeamStatus'
 import Breadcrumbs from '../components/Breadcrumbs'
+import UserMenu from '../components/UserMenu'
 import { Button } from '@/components/ui/button'
 import { FileText, UserPlus } from 'lucide-react'
 import { getCollaborators, type Collaborator } from '@/utils/storage'
@@ -90,13 +91,19 @@ function Dashboard() {
   return (
     <div className="bg-muted/50 py-4 sm:py-6 pb-6 sm:pb-8">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-5 lg:px-6">
-        {/* Header */}
-        <div className="flex justify-center mb-6 sm:mb-8">
-          <img 
-            src="/logo2.svg" 
-            alt="Lucro Claro" 
-            className="h-10 sm:h-[42px] w-auto"
-          />
+        {/* Header com Logo e Menu do Usuário */}
+        <div className="flex items-center justify-between mb-6 sm:mb-8">
+          <div className="flex-1"></div>
+          <div className="flex-1 flex justify-center">
+            <img 
+              src="/logo2.svg" 
+              alt="Lucro Claro" 
+              className="h-10 sm:h-[42px] w-auto"
+            />
+          </div>
+          <div className="flex-1 flex justify-end">
+            <UserMenu />
+          </div>
         </div>
         
         {/* Breadcrumbs */}

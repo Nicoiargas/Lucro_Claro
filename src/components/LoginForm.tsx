@@ -5,9 +5,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle, Loader2 } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
 
 function LoginForm() {
   const navigate = useNavigate()
+  const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -32,19 +34,27 @@ function LoginForm() {
       return
     }
 
-    if (password.length < 3) {
-      setError('A senha deve ter pelo menos 3 caracteres')
+    if (password.length < 6) {
+      setError('A senha deve ter pelo menos 6 caracteres')
       return
     }
 
     setIsLoading(true)
 
-    // Simulação de requisição (login mockado)
-    setTimeout(() => {
+    try {
+      const success = await login(email, password)
+      
+      if (success) {
+        // Redireciona para splash screen antes do dashboard
+        navigate('/splash')
+      } else {
+        setError('Email ou senha incorretos')
+      }
+    } catch (err) {
+      setError('Erro ao fazer login. Tente novamente.')
+    } finally {
       setIsLoading(false)
-      // Login mockado - aceita qualquer credencial válida
-      navigate('/dashboard')
-    }, 1000)
+    }
   }
 
   return (

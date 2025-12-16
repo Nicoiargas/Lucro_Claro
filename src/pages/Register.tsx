@@ -1,8 +1,8 @@
-import LoginForm from '../components/LoginForm'
+import RegisterForm from '../components/RegisterForm'
 import { Card, CardContent } from '@/components/ui/card'
 import { Link } from 'react-router-dom'
 
-function Login() {
+function Register() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/50 py-8">
       <Card className="w-full max-w-md shadow-lg border-t-4" style={{ borderTopColor: '#51ad78' }}>
@@ -14,16 +14,16 @@ function Login() {
               style={{ height: '135px', width: 'auto' }}
             />
           </div>
-          <LoginForm />
+          <RegisterForm />
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              Não tem uma conta?{' '}
+              Já tem uma conta?{' '}
               <Link 
-                to="/register" 
+                to="/login" 
                 className="font-medium hover:underline"
                 style={{ color: '#28314d' }}
               >
-                Criar conta
+                Fazer login
               </Link>
             </p>
           </div>
@@ -33,5 +33,5 @@ function Login() {
   )
 }
 
-export default Login
+export default Register
 
